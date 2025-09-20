@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Convertidor a UTM</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.8.0/proj4.js"></script>
+  <script src="https://unpkg.com/tokml/tokml.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+      background-color: #0f172a;
+      color: white;
+    }
+  </style>
+</head>
+
+<body class="flex flex-col min-h-screen bg-slate-900 text-white">
+
+
+  <!-- Encabezado -->
+  <div class="max-h-[45vh] overflow-auto bg-gradient-to-r from-gray-800 via-gray-900 to-black p-4">
+    <img src="semarnat.png" class="w-1/5" />
+    <h1 class="text-xl font-semibold mb-4">Convertidor de Coordenadas a UTM</h1>
+
+    <!-- Controles superiores -->
+    <div class="flex flex-col md:flex-row gap-4">
+      <!-- Coordenadas -->
+      <textarea id="coord-input" rows="6" placeholder="Nombre: Polígono A..."
+        class="w-full md:w-1/3 bg-gray-800 text-white p-2 rounded border border-gray-700 resize-none font-mono"></textarea>
+
+      <!-- Botones -->
+      <div class="flex flex-col gap-2 w-full md:w-1/4">
+        <button onclick="convertAndRender()" class="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded text-white">Convertir y Mostrar</button>
+        <button onclick="limpiarTodo()" class="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded">Limpiar Todo</button>
+        <button onclick="descargarKML()" class="bg-purple-600 hover:bg-purple-500 px-4 py-2 rounded text-white">Descargar KML</button>
+        <button onclick="descargarTabla()" class="bg-green-600 hover:bg-green-500 px-4 py-2 rounded text-white">Descargar Tabla</button>
+      </div>
+
+      <!-- Lista y tabla -->
+      <div class="w-full md:w-1/3 bg-gray-900 p-2 rounded-lg">
+        <h2 class="text-lg font-bold mb-2">Lista de Objetos</h2>
+        <ul id="object-list" class="flex flex-col gap-1 mb-4"></ul>
+        <h2 class="text-lg font-bold mb-2">Coordenadas UTM</h2>
+        <div class="overflow-auto max-h-64">
+          <table id="utm-table" class="w-full text-sm border-collapse border border-gray-600">
+            <thead class="bg-gray-700">
+              <tr>
+                <th class="border border-gray-600 px-2">Nombre</th>
+                <th class="border border-gray-600 px-2">Tipo</th>
+                <th class="border border-gray-600 px-2">Punto</th>
+                <th class="border border-gray-600 px-2">Este (E)</th>
+                <th class="border border-gray-600 px-2">Norte (N)</th>
+                <th class="border border-gray-600 px-2">Zona</th>
+              </tr>
+            </thead>
+            <tbody class="bg-gray-800"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mapa -->
+  <div class="w-full h-[55vh] mt-2">
+    <div id="map" class="w-full h-full"></div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+
+</html>

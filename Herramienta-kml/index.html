@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Generador de KML desde Coordenadas</title>
+
+  <!-- Tailwind (si no está ya incluido) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Leaflet y librerías -->
+  <link rel="stylesheet" href="public/style.css">
+  <link href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-graticule/dist/leaflet.graticule.min.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet-graticule/dist/leaflet.graticule.min.js"></script>
+  <script src="https://unpkg.com/esri-leaflet@3.0.8/dist/esri-leaflet.js"></script>
+  <script src="https://unpkg.com/esri-leaflet-vector/dist/esri-leaflet-vector.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.8.0/proj4.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6.5.0/turf.min.js"></script>
+  <script src="libs/leaflet.geometryutil.js"></script>
+  <script src="https://unpkg.com/leaflet-image/leaflet-image.js"></script>
+  <link rel="icon" type="image/png" href="ubicacion-del-mapa.png">
+</head>
+
+<body class="h-screen w-screen overflow-hidden font-sans bg-gray-50">
+
+
+<div id="leyenda" class="fixed bottom-4 left-4 mb-10 border border-gray-300 rounded shadow p-2 text-sm z-40 max-w-sm" style="background-color: rgb(255, 255, 255);">
+  <img src="semarnat.png" alt="Referencia" class="max-w-[140px] h-auto mb-2 mx-auto">  
+  <strong class="block mb-1">Simbología</strong>
+  <div id="leyendaContenido"></div>
+</div>
+
+  <!-- Botón flotante para mostrar/ocultar panel -->
+<button id="toggleSidebar" class="fixed top-1/2 left-0 z-50 bg-black text-white px-2 py-1 rounded-r focus:outline-none transition-transform duration-300">
+  >
+</button>
+
+  <!-- Panel lateral ocultable -->
+  <div id="sidePanel" class="absolute top-0 left-0 w-80 max-w-full h-full bg-[url('gps.png')] bg-cover bg-center shadow-lg p-4 overflow-y-auto transition-transform transform translate-x-0 z-40">
+    <h1 class="text-2xl font-bold mb-4">Generador de Archivos KML</h1>
+
+
+    <label class="block text-sm font-semibold">Subir archivo CSV:</label>
+    <input type="file" id="csvUpload" accept=".csv" class="border border-black p-2 rounded w-full mb-2" />
+
+    <div class="flex gap-2 mb-4">
+    <button onclick="procesarCSV()" class="bg-blue-600 text-white px-4 py-1 mb-2 rounded hover:bg-blue-700">Cargar CSV</button>
+    <button onclick="limpiarMapa()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 mb-2 rounded">Limpiar mapa</button>
+    </div>
+    
+    <div class="mb-4">
+  <label for="textareaCoordenadas" class="block font-semibold mb-1">Ingresar coordenadas manualmente:</label>
+  <textarea id="textareaCoordenadas" rows="8" class="w-full border border-black p-2 rounded text-sm " placeholder="# NombreObjeto zona=XX tipo=poligono
+1 123456 2345678
+2 123789 2345900
+..."></textarea>
+  <button id="btnProcesarTexto" class="mt-2 bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700">Procesar texto</button>
+</div>
+
+
+    
+<label class="block text-sm font-medium mt-2">Color del polígono:</label>
+<select id="estiloPoligono" class="border border-black rounded px-2 py-1 text-sm w-full mb-4">
+  <option value="blanco">Blanco</option>
+  <option value="aleatorio">Color aleatorio</option>
+</select>
+
+    <label class="block text-sm font-medium">Nombre que llevará el KML:</label>
+    <input id="nombreObjeto" type="text" class="w-full p-1 border border-black rounded mb-4" placeholder="Ejemplo: Hotel Blue" />
+
+
+
+
+    <div class="flex gap-2 mb-4">
+      <button onclick="descargarKML()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded">Descargar KML</button>
+    </div>
+
+  <div id="resultadosMediciones" class="p-2 mb-4 rounded bg-white shadow text-sm max-h-40 overflow-auto"></div>
+
+    <label for="kmlUpload" class="block text-sm font-medium">Subir archivo KML:</label>
+    <input type="file" id="kmlUpload" accept=".kml" class="mb-4 border border-black p-2 rounded w-full"/>
+        <button id="btnRecargarKML" class="bg-blue-500 text-white px-4 mb-2 py-1 rounded hover:bg-blue-600">🔄</button>
+
+
+
+    <label class="text-sm block mb-1" for="vertexPrefix">Prefijo vértice:</label>
+    <input type="text" id="vertexPrefix" value="V" class="border rounded px-2 py-1 text-sm w-20 mb-2" />
+    <div class="flex gap-2 mb-4">
+      <button id="btnMostrarVertices" class="text-xl px-2 py-1 bg-blue-600 rounded">👁️</button>
+      <button id="bntOcultarVertices" class="text-2xl px-2 py-1 text-white bg-red-600 rounded">⊘</button>
+    </div>
+
+
+
+    <div id="sidebar" class="rounded p-3 shadow-inner bg-white text-sm mb-4 max-h-40 overflow-auto">
+      <h2 class="font-bold text-base mb-2">Objetos en el Mapa</h2>
+      <div id="lista-puntos" class="space-y-1"></div>
+    </div>
+
+  
+
+        <!-- Tablas UTM (puedes mover si prefieres lateral) -->
+  <div id="utmTableContainer" class="right-4 bg-white p-3 rounded shadow max-h-64 overflow-auto text-sm z-50 space-y-2"></div>
+  </div>
+
+
+  <!-- Mapa a pantalla completa -->
+  <div id="map" class="absolute inset-0 z-10"></div>
+
+
+
+
+  <div id="escalaNumerica" class="absolute top-4 right-2 mt-20 bg-white px-3 py-2 rounded shadow text-sm z-50 font-mono">
+  Escala: 1:calculando...
+
+</div>
+
+
+  <!-- Coordenadas en tiempo real -->
+  <div id="utmCoords" class="absolute bottom-2 right-4 bg-white mb-2 mr-20 rounded px-3 text-sm text-blue-800 font-mono shadow z-50"></div>
+
+  
+
+  <footer class="absolute bottom-0 inset-x-0 text-center p-2 text-xs text-black-500 bg-white bg-opacity-10 z-50">
+ <label for="text">Uso interno SEMARNAT</label>
+  </footer>
+
+  <!-- Script de app -->
+  <script defer src="app.js"></script>
+
+  <!-- Script para mostrar/ocultar panel -->
+  <script>
+const btn = document.getElementById('toggleSidebar');
+const panel = document.getElementById('sidePanel');
+
+let panelVisible = true;
+
+btn.addEventListener('click', () => {
+  panelVisible = !panelVisible;
+  panel.classList.toggle('-translate-x-full', !panelVisible);
+
+  // Mueve el botón junto con el panel
+  const anchoPanel = panel.offsetWidth;
+  btn.style.left = panelVisible ? `${anchoPanel}px` : '0';
+
+  // Mueve también la leyenda
+const leyenda = document.getElementById("leyenda");
+if (leyenda) {
+  leyenda.style.left = panelVisible ? `${anchoPanel + 16}px` : '16px'; // 16px de margen al borde
+}
+
+
+  // Cambia flechita
+  btn.textContent = panelVisible ? '<' : '>';
+});
+
+// Posición inicial y ocultar si es pantalla pequeña
+if (window.innerWidth < 768) {
+  panel.classList.add('-translate-x-full');
+  btn.style.left = '0';
+  btn.textContent = '>';
+  panelVisible = false;
+} else {
+  // Ajustar posición del botón al cargar
+  btn.style.left = `${panel.offsetWidth}px`;
+}
+if (leyenda) leyenda.style.left = `${panel.offsetWidth + 16}px`;
+
+document.getElementById("btnRecargarKML").addEventListener("click", () => {
+  if (!ultimoKMLTexto) {
+    alert("Primero carga un archivo KML.");
+    return;
+  }
+  renderizarDesdeTextoKML(ultimoKMLTexto);
+});
+
+  </script>
+</body>
+</html>
